@@ -1,14 +1,19 @@
 package com.johannesbergmann.pipe2phone
 
-import androidx.appcompat.app.AppCompatActivity
 import android.annotation.SuppressLint
+import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
+import android.text.format.Formatter
 import android.view.MotionEvent
 import android.view.View
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import java.io.BufferedInputStream
+import java.net.ServerSocket
+import java.net.SocketException
+import kotlin.concurrent.thread
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -18,6 +23,8 @@ class FullscreenActivity : AppCompatActivity() {
     private lateinit var fullscreenContent: TextView
     private lateinit var fullscreenContentControls: LinearLayout
     private val hideHandler = Handler()
+    private var serverSocket: ServerSocket? = null
+    private var serverThread: Thread? = null
 
     @SuppressLint("InlinedApi")
     private val hidePart2Runnable = Runnable {
@@ -65,20 +72,53 @@ class FullscreenActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_fullscreen)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         isFullscreen = true
 
         // Set up the user interaction to manually show or hide the system UI.
         fullscreenContent = findViewById(R.id.fullscreen_content)
         fullscreenContent.setOnClickListener { toggle() }
+        fullscreenContent.setHorizontallyScrolling(true)
 
         fullscreenContentControls = findViewById(R.id.fullscreen_content_controls)
 
-        // Upon interacting with UI controls, delay any scheduled hide()
-        // operations to prevent the jarring behavior of controls going away
-        // while interacting with the UI.
-        findViewById<Button>(R.id.dummy_button).setOnTouchListener(delayHideTouchListener)
+        val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+        val ipAddress: String = Formatter.formatIpAddress(wifiManager.connectionInfo.ipAddress)
+        var port = 18181
+
+        supportActionBar?.title = ""
+        supportActionBar?.subtitle = "pipe2phone - $ipAddress:$port"
+        fullscreenContent.setText("Send data to $ipAddress port $port\n\nExample:\n    echo Hello World | netcat -c $ipAddress $port\n\n")
+
+        serverSocket = ServerSocket(port)
+
+        serverThread = thread(start = true) {
+            var text = ""
+            while (true) {
+                var socket = serverSocket?.accept()
+                var stream = BufferedInputStream(socket?.getInputStream())
+                var buffer = ByteArray(100)
+
+                try {
+                    while (true) {
+                        val n = stream.read(buffer, 0, buffer.size)
+                        if (n == -1) break
+
+                        val s = String(buffer, 0, n)
+                        text = "$text$s"
+                        text = text.lines().takeLast(100).joinToString("\n")
+
+                        runOnUiThread {
+                            fullscreenContent.text = "$text\n"
+                        }
+                    }
+                }
+                catch(e: SocketException) {
+                }
+
+                socket?.close()
+            }
+        }
     }
 
     override fun onPostCreate(savedInstanceState: Bundle?) {
