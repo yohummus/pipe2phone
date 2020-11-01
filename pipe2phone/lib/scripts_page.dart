@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ScriptsPage extends StatelessWidget {
   @override
@@ -66,6 +67,8 @@ class ScriptsPage extends StatelessWidget {
 }
 
 class _ScriptDetailsPage extends StatelessWidget {
+  bool _fullscreen = false;
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -77,17 +80,33 @@ class _ScriptDetailsPage extends StatelessWidget {
           ),
           padding: const EdgeInsets.all(0),
           onPressed: () {
-            log('Button pressed');
+            log('Play/stop button pressed');
           },
         ),
       ),
       child: SafeArea(
-        child: Text(
-          'Terminal output\nThis could\nbe some long text...',
-          style: TextStyle(
-            color: CupertinoColors.white,
-            fontFamily: "RobotoMono",
-            fontSize: 12,
+        child: GestureDetector(
+          onTap: () {
+            log('Toggling fullscreen...');
+            if (_fullscreen) {
+              SystemChrome.setEnabledSystemUIOverlays(SystemUiOverlay.values);
+            } else {
+              SystemChrome.setEnabledSystemUIOverlays([]);
+            }
+
+            _fullscreen = !_fullscreen;
+          },
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            child: Text(
+              'Terminal output\nThis could\nbe some long text...',
+              style: TextStyle(
+                color: CupertinoColors.white,
+                fontFamily: "RobotoMono",
+                fontSize: 12,
+              ),
+            ),
           ),
         ),
       ),
