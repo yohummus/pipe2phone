@@ -4,11 +4,14 @@ import 'scripts_page.dart';
 import 'connection_page.dart';
 import 'terminal_page.dart';
 
-void main() {
-  runApp(MyApp());
+void main() => runApp(MyApp());
+
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
 }
 
-class MyApp extends StatelessWidget {
+class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return CupertinoApp(

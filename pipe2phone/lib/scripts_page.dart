@@ -49,9 +49,14 @@ class ScriptsPage extends StatelessWidget {
                                   builder: (context) => _ScriptDetailsPage(),
                                 ));
                               },
-                              leading: Icon(
-                                scriptInfo['icon'],
-                                color: CupertinoTheme.of(context).textTheme.textStyle.color,
+                              leading: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    scriptInfo['icon'],
+                                    color: CupertinoTheme.of(context).textTheme.textStyle.color,
+                                  ),
+                                ],
                               ),
                               title: Text(
                                 scriptInfo['title'],
