@@ -34,6 +34,8 @@ class _MyAppState extends State<MyApp> {
                     return TerminalPage();
                   case 2:
                     return ConnectionPage();
+                  default:
+                    return null;
                 }
               },
             );
