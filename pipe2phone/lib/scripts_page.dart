@@ -38,22 +38,39 @@ class ScriptsPage extends StatelessWidget {
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
-                        final scriptInfo = scripts[index];
-                        return Material(
-                          child: ListTile(
-                            onTap: () {
-                              Navigator.of(context).push(CupertinoPageRoute<void>(
-                                title: scriptInfo['title'],
-                                builder: (context) => _ScriptDetailsPage(),
-                              ));
-                            },
-                            leading: Icon(scriptInfo['icon']),
-                            title: Text(scriptInfo['title']),
-                            subtitle: Text(scriptInfo['description']),
-                          ),
-                        );
+                        final scriptInfo = scripts[index ~/ 2];
+                        if (index % 2 == 0) {
+                          return Material(
+                            child: ListTile(
+                              tileColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
+                              onTap: () {
+                                Navigator.of(context).push(CupertinoPageRoute<void>(
+                                  title: scriptInfo['title'],
+                                  builder: (context) => _ScriptDetailsPage(),
+                                ));
+                              },
+                              leading: Icon(
+                                scriptInfo['icon'],
+                                color: CupertinoTheme.of(context).textTheme.textStyle.color,
+                              ),
+                              title: Text(
+                                scriptInfo['title'],
+                                style: TextStyle(color: CupertinoTheme.of(context).textTheme.textStyle.color),
+                              ),
+                              subtitle: Text(
+                                scriptInfo['description'],
+                                style: TextStyle(
+                                    color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5)),
+                              ),
+                            ),
+                          );
+                        } else {
+                          return Divider(
+                            color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5),
+                          );
+                        }
                       },
-                      childCount: scripts.length,
+                      childCount: scripts.length * 2 - 1,
                     ),
                   ),
                 ),
