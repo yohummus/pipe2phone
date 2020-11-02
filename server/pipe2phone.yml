@@ -1,0 +1,18 @@
+---
+server:
+  title: My new pipe2phone server
+  description: Example configuration
+  password: secret
+
+scripts:
+  - name: Say hello world
+    description: Example script to just say "Hello world!"
+    icon: bubble_left_fill
+    enabled: true
+    command: echo "Hello world!"
+
+  - name: Show CPU load
+    description: Shows the CPU load in regular intervals
+    icon: speedometer
+    enabled: true
+    command: top

@@ -11,12 +11,12 @@ class ScriptsPage extends StatelessWidget {
       {
         'title': 'Say hello world',
         'description': 'Example script to just say "Hello World!"',
-        'icon': CupertinoIcons.airplane,
+        'icon': CupertinoIcons.bubble_left_fill,
       },
       {
         'title': 'Show the CPU load',
         'description': 'Shows the CPU load in regular intervals',
-        'icon': CupertinoIcons.person_crop_square,
+        'icon': CupertinoIcons.speedometer,
       },
       {
         'title': 'Cleanup & re-run',
