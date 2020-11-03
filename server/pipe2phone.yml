@@ -3,6 +3,9 @@ server:
   title: My new pipe2phone server
   description: Example configuration
   password: secret
+  listen_address: 0.0.0.0
+  broadcast_port: 17788
+  broadcast_interval: 1.0
 
 scripts:
   - name: Say hello world
