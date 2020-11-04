@@ -10,6 +10,7 @@ import socket
 import sys
 import time
 import yaml
+import json
 
 # Parse the command line
 parser = argparse.ArgumentParser(description='Server for the pipe2phone app.')
@@ -41,10 +42,12 @@ broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-broadcast_msg = '\n'.join(['pipe2phone', str(listen_port), cfg.server.title, cfg.server.description])
-print(f'Sending broadcasts on port {cfg.server.broadcast_port} once every {cfg.server.broadcast_interval} seconds')
+# Create the broadcast message
+protocol_version = 1
+broadcast_msg = json.dumps(['pipe2phone', protocol_version, listen_port, cfg.server.title, cfg.server.description])
 
 # Send broadcasts
+print(f'Sending broadcasts on port {cfg.server.broadcast_port} once every {cfg.server.broadcast_interval} seconds')
 while True:
     try:
         broadcast_socket.sendto(broadcast_msg.encode(), ('<broadcast>', cfg.server.broadcast_port))
