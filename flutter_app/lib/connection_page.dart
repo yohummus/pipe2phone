@@ -6,6 +6,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ServerInfo {
   InternetAddress address;
@@ -33,16 +34,25 @@ class ConnectionPage extends StatefulWidget {
 }
 
 class _ConnectionPageState extends State<ConnectionPage> {
-  final broadcastAddr = InternetAddress.anyIPv4;
-  final broadcastPort = 17788;
-  final serverInfos = [];
+  final _broadcastAddr = InternetAddress.anyIPv4;
+  int _broadcastPort = 17788;
+  RawDatagramSocket _broadcastSocket = null;
+  final _serverInfos = [];
+  TextEditingController _portTextController;
 
-  @override
-  void initState() {
-    super.initState();
+  void _startListeningToBroadcasts() {
+    if (_broadcastSocket != null) {
+      _broadcastSocket.close();
+    }
 
-    RawDatagramSocket.bind(broadcastAddr, broadcastPort).then((RawDatagramSocket socket) {
-      log('Listening for broadcasts on ${broadcastAddr.address} port $broadcastPort...');
+    if (_broadcastPort == null || _broadcastPort < 1 || _broadcastPort > 65535) {
+      log('Invalid broadcast port: $_broadcastPort');
+      return;
+    }
+
+    RawDatagramSocket.bind(_broadcastAddr, _broadcastPort).then((RawDatagramSocket socket) {
+      _broadcastSocket = socket;
+      log('Listening for broadcasts on ${_broadcastAddr.address} port $_broadcastPort...');
 
       socket.listen((RawSocketEvent e) {
         // Receive the broadcast message
@@ -62,8 +72,8 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
         // Check if we already know the server
         var alreadyKnownIdx = null;
-        for (var i = 0; i < serverInfos.length; ++i) {
-          if (serverInfos[i].address == serverInfo.address && serverInfos[i].port == serverInfo.port) {
+        for (var i = 0; i < _serverInfos.length; ++i) {
+          if (_serverInfos[i].address == serverInfo.address && _serverInfos[i].port == serverInfo.port) {
             alreadyKnownIdx = i;
             break;
           }
@@ -72,9 +82,9 @@ class _ConnectionPageState extends State<ConnectionPage> {
         // Add or replace the server information
         setState(() {
           if (alreadyKnownIdx == null) {
-            serverInfos.add(serverInfo);
+            _serverInfos.add(serverInfo);
           } else {
-            serverInfos[alreadyKnownIdx] = serverInfo;
+            _serverInfos[alreadyKnownIdx] = serverInfo;
           }
         });
       });
@@ -82,50 +92,90 @@ class _ConnectionPageState extends State<ConnectionPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _portTextController = TextEditingController(text: '$_broadcastPort');
+    _startListeningToBroadcasts();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.systemBackground,
-      child: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: MediaQuery.of(context).padding,
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index % 2 == 0) {
-                    final serverInfo = serverInfos[index ~/ 2];
-                    return Material(
-                      child: ListTile(
-                        tileColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
-                        onTap: () {
-                          log('Selected');
-                        },
-                        title: Text(
-                          serverInfo.title,
-                          style: TextStyle(color: CupertinoTheme.of(context).textTheme.textStyle.color),
-                        ),
-                        subtitle: Text(
-                          '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}',
-                          style:
-                              TextStyle(color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5)),
-                        ),
-                        trailing: Icon(
-                          CupertinoIcons.minus_circle,
-                          color: CupertinoTheme.of(context).textTheme.textStyle.color,
-                        ),
-                      ),
-                    );
-                  } else {
-                    return Divider(
-                      color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5),
-                    );
-                  }
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CupertinoTextField(
+                prefix: Row(
+                  children: [
+                    SizedBox(width: 10),
+                    CupertinoActivityIndicator(radius: 9.0),
+                    SizedBox(width: 10),
+                    Text('Listing on port'),
+                  ],
+                ),
+                controller: _portTextController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                clearButtonMode: OverlayVisibilityMode.editing,
+                maxLength: 5,
+                maxLengthEnforced: true,
+                maxLines: 1,
+                onEditingComplete: () {
+                  log('Changed listen port to ${_portTextController.text}');
+                  _broadcastPort = int.tryParse(_portTextController.text);
+                  _startListeningToBroadcasts();
                 },
-                childCount: math.max(0, serverInfos.length * 2 - 1),
               ),
             ),
-          ),
-        ],
+            Expanded(
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: MediaQuery.of(context).removePadding(removeTop: true).padding,
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index % 2 == 0) {
+                            final serverInfo = _serverInfos[index ~/ 2];
+                            return Material(
+                              child: ListTile(
+                                tileColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
+                                onTap: () {
+                                  log('Selected');
+                                },
+                                title: Text(
+                                  serverInfo.title,
+                                  style: TextStyle(color: CupertinoTheme.of(context).textTheme.textStyle.color),
+                                ),
+                                subtitle: Text(
+                                  '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}',
+                                  style: TextStyle(
+                                      color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5)),
+                                ),
+                                trailing: Icon(
+                                  CupertinoIcons.minus_circle,
+                                  color: CupertinoTheme.of(context).textTheme.textStyle.color,
+                                ),
+                              ),
+                            );
+                          } else {
+                            return Divider(
+                              color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5),
+                            );
+                          }
+                        },
+                        childCount: math.max(0, _serverInfos.length * 2 - 1),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
