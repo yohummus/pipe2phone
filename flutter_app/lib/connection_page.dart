@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:developer';
-import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
@@ -36,7 +35,7 @@ class ConnectionPage extends StatefulWidget {
 class _ConnectionPageState extends State<ConnectionPage> {
   final _broadcastAddr = InternetAddress.anyIPv4;
   int _broadcastPort = 17788;
-  RawDatagramSocket _broadcastSocket = null;
+  RawDatagramSocket _broadcastSocket;
   final _serverInfos = [];
   TextEditingController _portTextController;
 
@@ -71,7 +70,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
         }
 
         // Check if we already know the server
-        var alreadyKnownIdx = null;
+        var alreadyKnownIdx;
         for (var i = 0; i < _serverInfos.length; ++i) {
           if (_serverInfos[i].address == serverInfo.address && _serverInfos[i].port == serverInfo.port) {
             alreadyKnownIdx = i;
@@ -117,16 +116,22 @@ class _ConnectionPageState extends State<ConnectionPage> {
                   ],
                 ),
                 controller: _portTextController,
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.numberWithOptions(signed: false, decimal: false),
+                inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
                 textInputAction: TextInputAction.done,
                 clearButtonMode: OverlayVisibilityMode.editing,
                 maxLength: 5,
                 maxLengthEnforced: true,
                 maxLines: 1,
                 onEditingComplete: () {
-                  log('Changed listen port to ${_portTextController.text}');
-                  _broadcastPort = int.tryParse(_portTextController.text);
+                  int port = int.parse(_portTextController.text);
+                  if (port < 1024) port = 1024;
+                  if (port > 65535) port = 65535;
+                  log('Changed listen port to $port');
+                  _broadcastPort = port;
+                  _portTextController.text = '$port';
                   _startListeningToBroadcasts();
+                  FocusScope.of(context).unfocus();
                 },
               ),
             ),
@@ -146,18 +151,34 @@ class _ConnectionPageState extends State<ConnectionPage> {
                                 onTap: () {
                                   log('Selected');
                                 },
-                                title: Text(
-                                  serverInfo.title,
-                                  style: TextStyle(color: CupertinoTheme.of(context).textTheme.textStyle.color),
+                                leading: Icon(
+                                  CupertinoIcons.check_mark,
+                                  color: CupertinoTheme.of(context).primaryColor,
                                 ),
-                                subtitle: Text(
-                                  '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}',
-                                  style: TextStyle(
-                                      color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5)),
+                                title: Align(
+                                  alignment: Alignment(-3, 0),
+                                  child: Text(
+                                    serverInfo.title,
+                                    style: TextStyle(color: CupertinoTheme.of(context).primaryColor),
+                                  ),
                                 ),
-                                trailing: Icon(
-                                  CupertinoIcons.minus_circle,
-                                  color: CupertinoTheme.of(context).textTheme.textStyle.color,
+                                subtitle: Align(
+                                  alignment: Alignment(-2, 0),
+                                  child: Text(
+                                    '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}',
+                                    style: TextStyle(
+                                        color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5)),
+                                  ),
+                                ),
+                                trailing: CupertinoButton(
+                                  child: Icon(
+                                    CupertinoIcons.minus_circle,
+                                    color: CupertinoTheme.of(context).textTheme.textStyle.color,
+                                  ),
+                                  padding: const EdgeInsets.only(left: 10),
+                                  onPressed: () {
+                                    log('Remove button pressed');
+                                  },
                                 ),
                               ),
                             );
