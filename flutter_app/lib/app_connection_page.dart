@@ -15,7 +15,7 @@ class AppConnectionPage extends AppPage {
 }
 
 class _AppConnectionPageState extends State<AppConnectionPage> {
-  final _serverInfos = [];
+  final List<ServerInfo> _serverInfos = [];
   int broadcastPort;
 
   @override
@@ -65,7 +65,18 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
                         (context, index) {
                           if (index % 2 == 0) {
                             final serverInfo = _serverInfos[index ~/ 2];
-                            return ServerListTile(serverInfo: serverInfo);
+                            return ServerListTile(
+                              serverInfo: serverInfo,
+                              onTileTap: () {
+                                log('List tile tapped');
+                              },
+                              onRemoveBtnTap: () {
+                                log('Remove button tapped');
+                              },
+                              onDisconnectBtnTap: () {
+                                log('Disconnect button tapped');
+                              },
+                            );
                           } else {
                             final color = CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5);
                             return Divider(color: color);
@@ -91,6 +102,14 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
   }
 }
 
+enum ServerStatus {
+  neverConnected,
+  previouslyConnected,
+  connecting,
+  failedToConnect,
+  connected,
+}
+
 class ServerInfo {
   InternetAddress address;
   String prefix;
@@ -98,17 +117,24 @@ class ServerInfo {
   int port;
   String title;
   String description;
+  ServerStatus status = ServerStatus.neverConnected;
 
-  ServerInfo(InternetAddress address, String broadcastMsg) {
-    this.address = address;
+  static ServerInfo fromBroadcastMsg(InternetAddress address, String broadcastMsg) {
+    var info = ServerInfo();
+    info.address = address;
 
     final List<dynamic> fields = jsonDecode(broadcastMsg);
-    this.prefix = fields[0];
-    this.protocolVersion = fields[1];
-    this.port = fields[2];
-    this.title = fields[3];
-    this.description = fields[4];
+    info.prefix = fields[0];
+    info.protocolVersion = fields[1];
+    info.port = fields[2];
+    info.title = fields[3];
+    info.description = fields[4];
+
+    return info;
   }
+
+  @protected
+  ServerInfo();
 }
 
 typedef void ServerInfoCallback(ServerInfo serverInfo);
@@ -120,11 +146,12 @@ class BroadcastListener extends StatefulWidget {
   final ServerInfoCallback onServerInfoReceived;
 
   BroadcastListener({
+    Key key,
     @required this.broadcastAddress,
     @required this.initialBroadcastPort,
     @required this.pageActiveNotifier,
     @required this.onServerInfoReceived,
-  });
+  }) : super(key: key);
 
   @override
   _BroadcastListenerState createState() => _BroadcastListenerState();
@@ -222,7 +249,7 @@ class _BroadcastListenerState extends State<BroadcastListener> {
         // Parse the broadcast message
         ServerInfo serverInfo;
         try {
-          serverInfo = ServerInfo(datagram.address, msg);
+          serverInfo = ServerInfo.fromBroadcastMsg(datagram.address, msg);
         } on Exception catch (e) {
           log('Failed to parse broadcast message: $e');
         }
@@ -234,45 +261,63 @@ class _BroadcastListenerState extends State<BroadcastListener> {
   }
 }
 
-class ServerListTile extends StatefulWidget {
+class ServerListTile extends StatelessWidget {
   final ServerInfo serverInfo;
+  final VoidCallback onTileTap;
+  final VoidCallback onRemoveBtnTap;
+  final VoidCallback onDisconnectBtnTap;
 
   ServerListTile({
+    Key key,
     @required this.serverInfo,
-  });
+    @required this.onTileTap,
+    @required this.onRemoveBtnTap,
+    @required this.onDisconnectBtnTap,
+  }) : super(key: key);
 
-  @override
-  _ServerListTileState createState() => _ServerListTileState();
-}
-
-class _ServerListTileState extends State<ServerListTile> {
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = CupertinoTheme.of(context).scaffoldBackgroundColor;
-    final inactiveTitleColor = CupertinoTheme.of(context).textTheme.textStyle.color;
-    final activeTitleColor = CupertinoTheme.of(context).primaryColor;
-    final descriptionColor = CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5);
-    final removeIconColor = CupertinoTheme.of(context).textTheme.textStyle.color;
+    final theme = CupertinoTheme.of(context);
+    final textStyle = theme.textTheme.textStyle;
 
-    final serverInfo = widget.serverInfo;
+    final backgroundColor = theme.scaffoldBackgroundColor;
+    final titleColor = serverInfo.status == ServerStatus.connected ? theme.primaryColor : textStyle.color;
+    final descriptionColor = textStyle.color.withOpacity(0.5);
+
     final subtitle = '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}';
 
     return Material(
       child: ListTile(
         tileColor: backgroundColor,
-        onTap: () {
-          log('Selected');
-        },
-        title: Text(widget.serverInfo.title, style: TextStyle(color: activeTitleColor)),
+        onTap: onTileTap,
+        title: Text(serverInfo.title, style: TextStyle(color: titleColor)),
         subtitle: Text(subtitle, style: TextStyle(color: descriptionColor)),
-        trailing: CupertinoButton(
-          child: Icon(CupertinoIcons.minus_circle, color: removeIconColor),
-          padding: const EdgeInsets.only(left: 10),
-          onPressed: () {
-            log('Remove button pressed');
-          },
-        ),
+        trailing: _makeTrailingWidget(context),
       ),
     );
+  }
+
+  Widget _makeTrailingWidget(BuildContext context) {
+    switch (serverInfo.status) {
+      case ServerStatus.previouslyConnected:
+        return CupertinoButton(
+          child: Icon(CupertinoIcons.trash, color: CupertinoTheme.of(context).textTheme.textStyle.color),
+          padding: const EdgeInsets.only(left: 10),
+          onPressed: onRemoveBtnTap,
+        );
+
+      case ServerStatus.connecting:
+        return CupertinoActivityIndicator();
+
+      case ServerStatus.connected:
+        return CupertinoButton(
+          child: Icon(CupertinoIcons.xmark_circle, color: CupertinoTheme.of(context).textTheme.textStyle.color),
+          padding: const EdgeInsets.only(left: 10),
+          onPressed: onDisconnectBtnTap,
+        );
+
+      default:
+        return SizedBox();
+    }
   }
 }
