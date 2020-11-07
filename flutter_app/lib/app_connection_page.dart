@@ -16,6 +16,7 @@ class AppConnectionPage extends AppPage {
 
 class _AppConnectionPageState extends State<AppConnectionPage> {
   final _serverInfos = [];
+  int broadcastPort;
 
   @override
   void initState() {
@@ -32,7 +33,7 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
           children: [
             BroadcastListener(
               broadcastAddress: InternetAddress.anyIPv4,
-              broadcastPort: 17788,
+              initialBroadcastPort: 17788,
               pageActiveNotifier: widget.pageActiveNotifier,
               onServerInfoReceived: (serverInfo) {
                 // Check if we already know the server
@@ -64,47 +65,10 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
                         (context, index) {
                           if (index % 2 == 0) {
                             final serverInfo = _serverInfos[index ~/ 2];
-                            return Material(
-                              child: ListTile(
-                                tileColor: CupertinoTheme.of(context).scaffoldBackgroundColor,
-                                onTap: () {
-                                  log('Selected');
-                                },
-                                leading: Icon(
-                                  CupertinoIcons.check_mark,
-                                  color: CupertinoTheme.of(context).primaryColor,
-                                ),
-                                title: Align(
-                                  alignment: Alignment(-3, 0),
-                                  child: Text(
-                                    serverInfo.title,
-                                    style: TextStyle(color: CupertinoTheme.of(context).primaryColor),
-                                  ),
-                                ),
-                                subtitle: Align(
-                                  alignment: Alignment(-2, 0),
-                                  child: Text(
-                                    '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}',
-                                    style: TextStyle(
-                                        color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5)),
-                                  ),
-                                ),
-                                trailing: CupertinoButton(
-                                  child: Icon(
-                                    CupertinoIcons.minus_circle,
-                                    color: CupertinoTheme.of(context).textTheme.textStyle.color,
-                                  ),
-                                  padding: const EdgeInsets.only(left: 10),
-                                  onPressed: () {
-                                    log('Remove button pressed');
-                                  },
-                                ),
-                              ),
-                            );
+                            return ServerListTile(serverInfo: serverInfo);
                           } else {
-                            return Divider(
-                              color: CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5),
-                            );
+                            final color = CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5);
+                            return Divider(color: color);
                           }
                         },
                         childCount: math.max(0, _serverInfos.length * 2 - 1),
@@ -151,13 +115,13 @@ typedef void ServerInfoCallback(ServerInfo serverInfo);
 
 class BroadcastListener extends StatefulWidget {
   final InternetAddress broadcastAddress;
-  int broadcastPort;
+  final int initialBroadcastPort;
   final ValueNotifier<bool> pageActiveNotifier;
   final ServerInfoCallback onServerInfoReceived;
 
   BroadcastListener({
     @required this.broadcastAddress,
-    @required this.broadcastPort,
+    @required this.initialBroadcastPort,
     @required this.pageActiveNotifier,
     @required this.onServerInfoReceived,
   });
@@ -173,17 +137,17 @@ class _BroadcastListenerState extends State<BroadcastListener> {
   @override
   void initState() {
     super.initState();
-    _portTextController = TextEditingController(text: '${widget.broadcastPort}');
+    _portTextController = TextEditingController(text: '${widget.initialBroadcastPort}');
 
     widget.pageActiveNotifier.addListener(() {
       if (widget.pageActiveNotifier.value) {
-        _startListeningToBroadcasts();
+        _startListeningToBroadcasts(int.parse(_portTextController.text));
       } else {
         _closeSocket();
       }
     });
 
-    _startListeningToBroadcasts();
+    _startListeningToBroadcasts(widget.initialBroadcastPort);
   }
 
   @override
@@ -214,13 +178,18 @@ class _BroadcastListenerState extends State<BroadcastListener> {
         maxLengthEnforced: true,
         maxLines: 1,
         onEditingComplete: () {
+          // Parse & clamp broadcast port
           int port = int.parse(_portTextController.text);
           if (port < 1024) port = 1024;
           if (port > 65535) port = 65535;
           _portTextController.text = '$port';
-          widget.broadcastPort = port;
+
+          // Re-create the broadcast socket
           log('Changed broadcast listen port to $port');
-          _startListeningToBroadcasts();
+          _closeSocket();
+          _startListeningToBroadcasts(port);
+
+          // Hide keyboard
           FocusScope.of(context).unfocus();
         },
       ),
@@ -228,18 +197,19 @@ class _BroadcastListenerState extends State<BroadcastListener> {
   }
 
   void _closeSocket() {
-    if (_broadcastSocket != null) {
-      _broadcastSocket.close();
-      _broadcastSocket = null;
-    }
+    if (_broadcastSocket == null) return;
+
+    _broadcastSocket.close();
+    _broadcastSocket = null;
+    log('Broadcast listener socket closed');
   }
 
-  void _startListeningToBroadcasts() {
+  void _startListeningToBroadcasts(int port) {
     _closeSocket();
 
-    RawDatagramSocket.bind(widget.broadcastAddress, widget.broadcastPort).then((RawDatagramSocket socket) {
+    RawDatagramSocket.bind(widget.broadcastAddress, port).then((RawDatagramSocket socket) {
       _broadcastSocket = socket;
-      log('Listening for broadcasts on ${widget.broadcastAddress.address} port ${widget.broadcastPort}...');
+      log('Listening for broadcasts on ${widget.broadcastAddress.address} port ${port}...');
 
       socket.listen((RawSocketEvent e) {
         // Receive the broadcast message
@@ -257,8 +227,59 @@ class _BroadcastListenerState extends State<BroadcastListener> {
           log('Failed to parse broadcast message: $e');
         }
 
+        // Propagate the new server information
         widget.onServerInfoReceived(serverInfo);
       });
     });
+  }
+}
+
+class ServerListTile extends StatefulWidget {
+  final ServerInfo serverInfo;
+
+  ServerListTile({
+    @required this.serverInfo,
+  });
+
+  @override
+  _ServerListTileState createState() => _ServerListTileState();
+}
+
+class _ServerListTileState extends State<ServerListTile> {
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = CupertinoTheme.of(context).scaffoldBackgroundColor;
+    final inactiveTitleColor = CupertinoTheme.of(context).textTheme.textStyle.color;
+    final activeTitleColor = CupertinoTheme.of(context).primaryColor;
+    final descriptionColor = CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5);
+    final removeIconColor = CupertinoTheme.of(context).textTheme.textStyle.color;
+
+    final serverInfo = widget.serverInfo;
+    final subtitle = '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}';
+
+    return Material(
+      child: ListTile(
+        tileColor: backgroundColor,
+        onTap: () {
+          log('Selected');
+        },
+        leading: Icon(CupertinoIcons.check_mark, color: activeTitleColor),
+        title: Align(
+          alignment: Alignment(-3, 0),
+          child: Text(widget.serverInfo.title, style: TextStyle(color: activeTitleColor)),
+        ),
+        subtitle: Align(
+          alignment: Alignment(-2, 0),
+          child: Text(subtitle, style: TextStyle(color: descriptionColor)),
+        ),
+        trailing: CupertinoButton(
+          child: Icon(CupertinoIcons.minus_circle, color: removeIconColor),
+          padding: const EdgeInsets.only(left: 10),
+          onPressed: () {
+            log('Remove button pressed');
+          },
+        ),
+      ),
+    );
   }
 }
