@@ -263,15 +263,8 @@ class _ServerListTileState extends State<ServerListTile> {
         onTap: () {
           log('Selected');
         },
-        leading: Icon(CupertinoIcons.check_mark, color: activeTitleColor),
-        title: Align(
-          alignment: Alignment(-3, 0),
-          child: Text(widget.serverInfo.title, style: TextStyle(color: activeTitleColor)),
-        ),
-        subtitle: Align(
-          alignment: Alignment(-2, 0),
-          child: Text(subtitle, style: TextStyle(color: descriptionColor)),
-        ),
+        title: Text(widget.serverInfo.title, style: TextStyle(color: activeTitleColor)),
+        subtitle: Text(subtitle, style: TextStyle(color: descriptionColor)),
         trailing: CupertinoButton(
           child: Icon(CupertinoIcons.minus_circle, color: removeIconColor),
           padding: const EdgeInsets.only(left: 10),
