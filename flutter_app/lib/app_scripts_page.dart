@@ -4,7 +4,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class ScriptsPage extends StatelessWidget {
+import 'app_page.dart';
+
+class AppScriptsPage extends AppPage {
+  @override
+  _AppScriptsPageState createState() => _AppScriptsPageState();
+}
+
+class _AppScriptsPageState extends State<AppScriptsPage> {
   @override
   Widget build(BuildContext context) {
     final scripts = [

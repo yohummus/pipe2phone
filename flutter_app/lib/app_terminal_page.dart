@@ -1,6 +1,13 @@
 import 'package:flutter/cupertino.dart';
 
-class TerminalPage extends StatelessWidget {
+import 'app_page.dart';
+
+class AppTerminalPage extends AppPage {
+  @override
+  _AppTerminalPageState createState() => _AppTerminalPageState();
+}
+
+class _AppTerminalPageState extends State<AppTerminalPage> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
