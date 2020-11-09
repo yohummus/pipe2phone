@@ -287,14 +287,43 @@ class ServerListTile extends StatelessWidget {
     final subtitle = '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}';
 
     return Material(
-      child: ListTile(
-        tileColor: backgroundColor,
+      color: backgroundColor,
+      child: InkWell(
+        splashColor: textStyle.color.withOpacity(0.3),
         onTap: onTileTap,
-        title: Text(serverInfo.title, style: TextStyle(color: titleColor)),
-        subtitle: Text(subtitle, style: TextStyle(color: descriptionColor)),
-        trailing: _makeTrailingWidget(context),
+        child: Container(
+          padding: EdgeInsets.all(6.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              _makeLeadingWidget(context),
+              Padding(padding: EdgeInsets.only(left: 6.0)),
+              Column(
+                children: [
+                  Text(serverInfo.title, style: TextStyle(color: titleColor)),
+                  Text(subtitle, style: TextStyle(color: descriptionColor)),
+                ],
+              ),
+              Spacer(),
+              _makeTrailingWidget(context),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  Widget _makeLeadingWidget(BuildContext context) {
+    switch (serverInfo.status) {
+      case ServerStatus.connecting:
+        return CupertinoActivityIndicator();
+
+      case ServerStatus.connected:
+        return Icon(CupertinoIcons.checkmark_alt, color: CupertinoTheme.of(context).primaryColor);
+
+      default:
+        return SizedBox();
+    }
   }
 
   Widget _makeTrailingWidget(BuildContext context) {
@@ -305,9 +334,6 @@ class ServerListTile extends StatelessWidget {
           padding: const EdgeInsets.only(left: 10),
           onPressed: onRemoveBtnTap,
         );
-
-      case ServerStatus.connecting:
-        return CupertinoActivityIndicator();
 
       case ServerStatus.connected:
         return CupertinoButton(
