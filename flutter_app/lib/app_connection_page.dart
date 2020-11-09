@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:developer';
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
@@ -69,6 +70,7 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
                               serverInfo: serverInfo,
                               onTileTap: () {
                                 log('List tile tapped');
+                                _connectToServer(serverInfo);
                               },
                               onRemoveBtnTap: () {
                                 log('Remove button tapped');
@@ -100,13 +102,24 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
       _serverInfos.clear();
     });
   }
+
+  void _connectToServer(ServerInfo serverInfo) async {
+    log('Connecting to ${serverInfo.address.address} port ${serverInfo.port}...');
+    try {
+      Socket socket = await Socket.connect(serverInfo.address, serverInfo.port);
+      log('Successfully connected');
+
+      socket.close();
+    } on SocketException catch (e) {
+      log('Connection failed: $e');
+    }
+  }
 }
 
 enum ServerStatus {
   neverConnected,
   previouslyConnected,
   connecting,
-  failedToConnect,
   connected,
 }
 
