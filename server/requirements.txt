@@ -1,3 +1,4 @@
 PyYAML
 munch
 websockets
+pyOpenSSL

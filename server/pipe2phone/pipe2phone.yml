@@ -4,8 +4,12 @@ server:
   description: Example configuration
   password: secret
   listen_address: 0.0.0.0
+  listen_port: 11111 # null = random port
   broadcast_port: 17788
   broadcast_interval: 3.0
+  private_key: private_key.pem
+  private_key_password: null
+  ssl_cert: cert.pem
 
 scripts:
   - name: Say hello world
