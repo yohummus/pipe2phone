@@ -1,4 +1,6 @@
-PyYAML
+argcomplete
+flask
+flask-socketio
 munch
-websockets
+PyYAML
 pyOpenSSL

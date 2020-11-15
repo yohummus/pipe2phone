@@ -7,7 +7,9 @@
         "**/.DS_Store": true,
         "**/__pycache__": true,
         "**/.dart_tool": true,
-        "**/build": true
+        "**/build": true,
+        "**/.venv": true,
+        "**/.idea": true
     },
     "dart.lineLength": 120,
     "[dart]": {

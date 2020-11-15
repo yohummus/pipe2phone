@@ -1,16 +1,40 @@
 ---
-server:
-  title: My new pipe2phone server
-  description: Example configuration
-  password: secret
-  listen_address: 0.0.0.0
-  listen_port: 11111 # null = random port
-  broadcast_port: 17788
-  broadcast_interval: 3.0
-  private_key: private_key.pem
-  private_key_password: null
-  ssl_cert: cert.pem
+# Information about the server that will appear in the connections page of the
+# mobile app. The password is required when connecting to the secured server.
+server_title: My new pipe2phone server
+server_description: Example configuration
+server_password: secret
 
+# Network address that the HTTP/HTTPS/WSS servers listen on. The default is
+# 0.0.0.0 which means all network interfaces.
+bind_address: 0.0.0.0
+
+# Port that the HTTP server listens on. The HTTP server serves general
+# information and allows downloading the SSL certificate that the client can
+# install on their device to allow connecting to the secure server. The default
+# is null which causes pipe2phone to use a random port.
+http_port: 11111
+
+# Port that the secured server listens on. The secured server is a HTTPS/WSS
+# server that enables launching scripts and retrieving terminal output. The
+# default is null which causes pipe2phone to use a random port.
+https_port: 22222
+
+# SSL key and certificate files for connections from the mobile app. The
+# certificate is used to encrypt the communication between mobile app and
+# server and to prevent password phishing attacks. The password property must
+# be set to null if the private key is unencrypted.
+private_key: private_key.pem
+private_key_password: null
+ssl_cert: cert.pem
+
+# Advertising UDP broadcasts configuration for mobile apps to find both the
+# HTTP server and the secured server. In order for mobile apps to find the
+# server, they must listen on the same port on the connections page.
+advertising_port: 17788
+advertising_interval: 1.0
+
+# TODO: Blablabla
 scripts:
   - name: Say hello world
     description: Example script to just say "Hello world!"

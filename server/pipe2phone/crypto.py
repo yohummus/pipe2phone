@@ -2,7 +2,7 @@
 Cryptography-related functionality.
 """
 
-from OpenSSL import crypto, SSL
+from OpenSSL import crypto
 
 
 def generate_private_key(bits=2048) -> bytes:
