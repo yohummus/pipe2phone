@@ -24,7 +24,7 @@ def generate_certificate(private_key: bytes, *,
                          validity_start_in_seconds=0,
                          validity_end_in_seconds=10 * 365 * 24 * 60 * 60,
                          ) -> bytes:
-    """Generates a self-signed SSL certificate"""
+    """Generates a self-signed PEM-encoded SSL certificate"""
     cert = crypto.X509()
     cert.get_subject().emailAddress = email_address
     cert.get_subject().CN = common_name

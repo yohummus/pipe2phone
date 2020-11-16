@@ -38,7 +38,7 @@ class Advertiser:
         ]).encode()
 
         logging.info(f'Sending broadcasts on port {self.port} once every {self.interval} seconds')
-        asyncio.run(self._run())
+        asyncio.get_event_loop().create_task(self._run())
 
     async def _run(self):
         """Sends advertising broadcasts repeatedly"""

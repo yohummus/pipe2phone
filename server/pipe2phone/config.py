@@ -16,7 +16,7 @@ from typing import Any, List, Optional
 
 from crypto import generate_private_key, generate_certificate
 
-CONFIG_TEMPLATE_FILE = Path(__file__).parent / 'pipe2phone.yml'
+CONFIG_TEMPLATE_FILE = Path(__file__).parent / 'config/pipe2phone.yml'
 DEFAULT_CONFIG_DIR = Path('~/.pipe2phone')
 DEFAULT_CONFIG_FILENAME = 'pipe2phone.yml'
 DEFAULT_SSL_KEY_FILENAME = 'private_key.pem'

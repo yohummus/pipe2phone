@@ -1,6 +1,7 @@
 argcomplete
 flask
 flask-socketio
+jinja2
 munch
 PyYAML
 pyOpenSSL
