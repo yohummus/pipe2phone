@@ -1,14 +1,13 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:developer';
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'app_page.dart';
+import 'broadcast_listener.dart';
+import 'server_info.dart';
 
 class AppConnectionPage extends AppPage {
   @override
@@ -40,7 +39,8 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
                 // Check if we already know the server
                 var alreadyKnownIdx;
                 for (var i = 0; i < _serverInfos.length; ++i) {
-                  if (_serverInfos[i].address == serverInfo.address && _serverInfos[i].port == serverInfo.port) {
+                  if (_serverInfos[i].address == serverInfo.address &&
+                      _serverInfos[i].httpPort == serverInfo.httpPort) {
                     alreadyKnownIdx = i;
                     break;
                   }
@@ -104,173 +104,15 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
   }
 
   void _connectToServer(ServerInfo serverInfo) async {
-    log('Connecting to ${serverInfo.address.address} port ${serverInfo.port}...');
+    log('Connecting to ${serverInfo.address.address} port ${serverInfo.httpPort}...');
     try {
-      Socket socket = await Socket.connect(serverInfo.address, serverInfo.port);
+      Socket socket = await Socket.connect(serverInfo.address, serverInfo.httpPort);
       log('Successfully connected');
 
       socket.close();
     } on SocketException catch (e) {
       log('Connection failed: $e');
     }
-  }
-}
-
-enum ServerStatus {
-  neverConnected,
-  previouslyConnected,
-  connecting,
-  connected,
-}
-
-class ServerInfo {
-  InternetAddress address;
-  String prefix;
-  int protocolVersion;
-  int port;
-  String title;
-  String description;
-  ServerStatus status = ServerStatus.neverConnected;
-
-  static ServerInfo fromBroadcastMsg(InternetAddress address, String broadcastMsg) {
-    var info = ServerInfo();
-    info.address = address;
-
-    final List<dynamic> fields = jsonDecode(broadcastMsg);
-    info.prefix = fields[0];
-    info.protocolVersion = fields[1];
-    info.port = fields[2];
-    info.title = fields[3];
-    info.description = fields[4];
-
-    return info;
-  }
-
-  @protected
-  ServerInfo();
-}
-
-typedef void ServerInfoCallback(ServerInfo serverInfo);
-
-class BroadcastListener extends StatefulWidget {
-  final InternetAddress broadcastAddress;
-  final int initialBroadcastPort;
-  final ValueNotifier<bool> pageActiveNotifier;
-  final ServerInfoCallback onServerInfoReceived;
-
-  BroadcastListener({
-    Key key,
-    @required this.broadcastAddress,
-    @required this.initialBroadcastPort,
-    @required this.pageActiveNotifier,
-    @required this.onServerInfoReceived,
-  }) : super(key: key);
-
-  @override
-  _BroadcastListenerState createState() => _BroadcastListenerState();
-}
-
-class _BroadcastListenerState extends State<BroadcastListener> {
-  TextEditingController _portTextController;
-  RawDatagramSocket _broadcastSocket;
-
-  @override
-  void initState() {
-    super.initState();
-    _portTextController = TextEditingController(text: '${widget.initialBroadcastPort}');
-
-    widget.pageActiveNotifier.addListener(() {
-      if (widget.pageActiveNotifier.value) {
-        _startListeningToBroadcasts(int.parse(_portTextController.text));
-      } else {
-        _closeSocket();
-      }
-    });
-
-    _startListeningToBroadcasts(widget.initialBroadcastPort);
-  }
-
-  @override
-  void dispose() {
-    _closeSocket();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: CupertinoTextField(
-        prefix: Row(
-          children: [
-            SizedBox(width: 10),
-            CupertinoActivityIndicator(radius: 9.0),
-            SizedBox(width: 10),
-            Text('Listing on port'),
-          ],
-        ),
-        controller: _portTextController,
-        keyboardType: TextInputType.numberWithOptions(signed: false, decimal: false),
-        inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
-        textInputAction: TextInputAction.done,
-        clearButtonMode: OverlayVisibilityMode.editing,
-        maxLength: 5,
-        maxLengthEnforced: true,
-        maxLines: 1,
-        onEditingComplete: () {
-          // Parse & clamp broadcast port
-          int port = int.parse(_portTextController.text);
-          if (port < 1024) port = 1024;
-          if (port > 65535) port = 65535;
-          _portTextController.text = '$port';
-
-          // Re-create the broadcast socket
-          log('Changed broadcast listen port to $port');
-          _closeSocket();
-          _startListeningToBroadcasts(port);
-
-          // Hide keyboard
-          FocusScope.of(context).unfocus();
-        },
-      ),
-    );
-  }
-
-  void _closeSocket() {
-    if (_broadcastSocket == null) return;
-
-    _broadcastSocket.close();
-    _broadcastSocket = null;
-    log('Broadcast listener socket closed');
-  }
-
-  void _startListeningToBroadcasts(int port) {
-    _closeSocket();
-
-    RawDatagramSocket.bind(widget.broadcastAddress, port).then((RawDatagramSocket socket) {
-      _broadcastSocket = socket;
-      log('Listening for broadcasts on ${widget.broadcastAddress.address} port ${port}...');
-
-      socket.listen((RawSocketEvent e) {
-        // Receive the broadcast message
-        Datagram datagram = socket.receive();
-        if (datagram == null) return;
-
-        String msg = new String.fromCharCodes(datagram.data);
-        log('Received broadcast from ${datagram.address.address} port ${datagram.port}: $msg');
-
-        // Parse the broadcast message
-        ServerInfo serverInfo;
-        try {
-          serverInfo = ServerInfo.fromBroadcastMsg(datagram.address, msg);
-        } on Exception catch (e) {
-          log('Failed to parse broadcast message: $e');
-        }
-
-        // Propagate the new server information
-        widget.onServerInfoReceived(serverInfo);
-      });
-    });
   }
 }
 
@@ -297,7 +139,7 @@ class ServerListTile extends StatelessWidget {
     final titleColor = serverInfo.status == ServerStatus.connected ? theme.primaryColor : textStyle.color;
     final descriptionColor = textStyle.color.withOpacity(0.5);
 
-    final subtitle = '${serverInfo.address.address} port ${serverInfo.port}\n${serverInfo.description}';
+    final subtitle = '${serverInfo.address.address} port ${serverInfo.httpPort}\n${serverInfo.description}';
 
     return Material(
       color: backgroundColor,
