@@ -12,7 +12,7 @@ import logging
 
 from config import Configuration
 from http_server import HttpServer
-from https_server import HttpsServer
+from secure_server import SecureServer
 from broadcasts import Advertiser
 
 # Setup logging
@@ -28,8 +28,8 @@ if cfg.debug:
 
 # Create the HTTP server, the secured server and the broadcast sender
 http_server = HttpServer(cfg)
-https_server = HttpsServer(cfg)
-advertiser = Advertiser(cfg, http_server, https_server)
+secure_server = SecureServer(cfg)
+advertiser = Advertiser(cfg, http_server, secure_server)
 
 # Run until we receive SIGINT
 with contextlib.suppress(KeyboardInterrupt):

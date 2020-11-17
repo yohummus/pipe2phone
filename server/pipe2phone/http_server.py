@@ -1,7 +1,6 @@
 """
-Module for the HTTP server. It provides general information and the ability for
-clients to download the SSL certificate required to connect to the secured
-server.
+Module for the HTTP server. It provides general information and the ability to
+download the SSL certificate required to connect to the secure server.
 """
 
 import asyncio

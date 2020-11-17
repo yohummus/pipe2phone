@@ -5,7 +5,7 @@ server_title: My new pipe2phone server
 server_description: Example configuration
 server_password: secret
 
-# Network address that the HTTP/HTTPS/WSS servers listen on. The default is
+# Network address that the HTTP and secure servers listen on. The default is
 # 0.0.0.0 which means all network interfaces.
 bind_address: 0.0.0.0
 
@@ -15,10 +15,10 @@ bind_address: 0.0.0.0
 # is null which causes pipe2phone to use a random port.
 http_port: 11111
 
-# Port that the secured server listens on. The secured server is a HTTPS/WSS
-# server that enables launching scripts and retrieving terminal output. The
-# default is null which causes pipe2phone to use a random port.
-https_port: 22222
+# Port that the secure server listens on. The secure server is a HTTPS server
+# that enables launching scripts and retrieving terminal output. The default
+# is null which causes pipe2phone to use a random port.
+secure_port: 22222
 
 # SSL key and certificate files for connections from the mobile app. The
 # certificate is used to encrypt the communication between mobile app and

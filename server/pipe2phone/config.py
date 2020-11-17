@@ -73,9 +73,9 @@ class Configuration:
         return self._yaml.http_port or 0
 
     @property
-    def https_port(self) -> int:
-        """Port that the secured HTTPS and WSS server (for running scripts and getting terminal output) listens on"""
-        return self._yaml.https_port or 0
+    def secure_port(self) -> int:
+        """Port that the secure server (for running scripts and getting terminal output) listens on"""
+        return self._yaml.secure_port or 0
 
     @property
     def private_key_file(self) -> Path:

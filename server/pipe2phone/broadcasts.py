@@ -9,7 +9,7 @@ import json
 
 from config import Configuration
 from http_server import HttpServer
-from https_server import HttpsServer
+from secure_server import SecureServer
 
 PROTOCOL_VERSION = 1
 
@@ -17,7 +17,7 @@ PROTOCOL_VERSION = 1
 class Advertiser:
     """Sends advertising broadcast that the mobile app listens too in order to connect"""
 
-    def __init__(self, cfg: Configuration, http_server: HttpServer, https_server: HttpsServer):
+    def __init__(self, cfg: Configuration, http_server: HttpServer, secure_server: SecureServer):
         self.port = cfg.advertising_port
         self.interval = cfg.advertising_interval
 
@@ -34,7 +34,7 @@ class Advertiser:
             cfg.server_title,
             cfg.server_description,
             http_server.port,
-            https_server.port
+            secure_server.port
         ]).encode()
 
         logging.info(f'Sending broadcasts on port {self.port} once every {self.interval} seconds')

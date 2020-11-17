@@ -1,7 +1,6 @@
 """
-Module for the secured server. The secured server is a HTTPS/WSS server that
-enables launching scripts and retrieving terminal output. Clients connecting
-to it must have the configured SSL certificate installed.
+Module for the secure server. The secure server is a HTTPS server that allows
+launching scripts and retrieving terminal output.
 """
 
 import asyncio
@@ -13,8 +12,8 @@ from aiohttp import web
 from config import Configuration
 
 
-class HttpsServer:
-    """Secured server for launching scripts and retrieving terminal output"""
+class SecureServer:
+    """Secure server for launching scripts and retrieving terminal output"""
 
     def __init__(self, cfg: Configuration):
         self._cfg = cfg
@@ -31,11 +30,11 @@ class HttpsServer:
         self._runner = web.AppRunner(self._app)
         asyncio.get_event_loop().run_until_complete(self._runner.setup())
 
-        self._site = web.TCPSite(self._runner, cfg.bind_address, cfg.https_port, ssl_context=ssl_context)
+        self._site = web.TCPSite(self._runner, cfg.bind_address, cfg.secure_port, ssl_context=ssl_context)
         asyncio.get_event_loop().run_until_complete(self._site.start())
 
         self.port = int(self._site.name[self._site.name.rindex(':') + 1:])
-        logging.info(f'Running secured server on {cfg.bind_address} port {self.port}')
+        logging.info(f'Running secure server on {cfg.bind_address} port {self.port}')
 
     def __del__(self):
         if self._runner:
@@ -47,4 +46,4 @@ class HttpsServer:
 
     async def _view_index(self, req: web.Request) -> web.Response:
         """Index view"""
-        return web.Response(text='Hello from secured server')
+        return web.Response(text='Hello from secure server')
