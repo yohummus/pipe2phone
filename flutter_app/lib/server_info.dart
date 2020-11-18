@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pipe2phone/connection_storage.dart';
 
 enum ServerStatus {
   neverConnected,
@@ -20,6 +21,20 @@ class ServerInfo {
   int httpPort;
   int securePort;
   ServerStatus status = ServerStatus.neverConnected;
+
+  static ServerInfo fromConnectionInfo(ConnectionInfo conn) {
+    var info = ServerInfo();
+    info.address = InternetAddress.tryParse(conn.address);
+    info.prefix = 'pipe2phone';
+    info.protocolVersion = 1;
+    info.title = conn.title;
+    info.description = conn.description;
+    info.httpPort = 0;
+    info.securePort = conn.securePort;
+    info.status = ServerStatus.previouslyConnected;
+
+    return info;
+  }
 
   static ServerInfo fromBroadcastMsg(InternetAddress address, String broadcastMsg) {
     var info = ServerInfo();

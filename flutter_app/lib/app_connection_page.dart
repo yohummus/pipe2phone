@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pipe2phone/connection_storage.dart';
 
 import 'app_page.dart';
 import 'broadcast_listener.dart';
@@ -15,13 +16,14 @@ class AppConnectionPage extends AppPage {
 }
 
 class _AppConnectionPageState extends State<AppConnectionPage> {
-  final List<ServerInfo> _serverInfos = [];
+  List<ServerInfo> _serverInfos = [];
   int broadcastPort;
 
   @override
   void initState() {
     super.initState();
-    widget.pageActiveNotifier.addListener(_reset);
+    widget.pageActiveNotifier.addListener(_onPageActiveChanged);
+    _onPageActiveChanged();
   }
 
   @override
@@ -97,9 +99,16 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
     );
   }
 
-  void _reset() {
+  void _onPageActiveChanged() async {
+    // We are only interested when the page becomes active
+    if (!widget.pageActiveNotifier.value) return;
+
+    // Load the connections from disk
+    var serverInfos = await _readConnectionsFromFile();
+
+    // Update the widget state
     setState(() {
-      _serverInfos.clear();
+      _serverInfos = serverInfos;
     });
   }
 
@@ -108,11 +117,32 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
     try {
       Socket socket = await Socket.connect(serverInfo.address, serverInfo.httpPort);
       log('Successfully connected');
+      _saveConnectionsToFile(_serverInfos);
 
       socket.close();
     } on SocketException catch (e) {
       log('Connection failed: $e');
     }
+  }
+
+  void _saveConnectionsToFile(List<ServerInfo> serverInfos) async {
+    final connections = serverInfos
+        .map((info) => ConnectionInfo(
+              info.address.address,
+              info.securePort,
+              info.title,
+              info.description,
+              '',
+              '',
+            ))
+        .toList();
+    ConnectionStorage().write(connections);
+  }
+
+  Future<List<ServerInfo>> _readConnectionsFromFile() async {
+    final connections = await ConnectionStorage().read();
+    final serverInfos = connections.map<ServerInfo>((conn) => ServerInfo.fromConnectionInfo(conn)).toList();
+    return serverInfos;
   }
 }
 
