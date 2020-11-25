@@ -37,26 +37,7 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
               broadcastAddress: InternetAddress.anyIPv4,
               initialBroadcastPort: 17788,
               pageActiveNotifier: widget.pageActiveNotifier,
-              onServerInfoReceived: (serverInfo) {
-                // Check if we already know the server
-                var alreadyKnownIdx;
-                for (var i = 0; i < _serverInfos.length; ++i) {
-                  if (_serverInfos[i].address == serverInfo.address &&
-                      _serverInfos[i].httpPort == serverInfo.httpPort) {
-                    alreadyKnownIdx = i;
-                    break;
-                  }
-                }
-
-                // Add or replace the server information
-                setState(() {
-                  if (alreadyKnownIdx == null) {
-                    _serverInfos.add(serverInfo);
-                  } else {
-                    _serverInfos[alreadyKnownIdx] = serverInfo;
-                  }
-                });
-              },
+              onServerInfoReceived: _onBroadcastReceived,
             ),
             Expanded(
               child: CustomScrollView(
@@ -70,16 +51,9 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
                             final serverInfo = _serverInfos[index ~/ 2];
                             return ServerListTile(
                               serverInfo: serverInfo,
-                              onTileTap: () {
-                                log('List tile tapped');
-                                _connectToServer(serverInfo);
-                              },
-                              onRemoveBtnTap: () {
-                                log('Remove button tapped');
-                              },
-                              onDisconnectBtnTap: () {
-                                log('Disconnect button tapped');
-                              },
+                              onTileTap: () => _onTileTapped(serverInfo),
+                              onRemoveBtnTap: () => _onRemoveIconTapped(serverInfo),
+                              onDisconnectBtnTap: () => _onDisconnectIconTapped(serverInfo),
                             );
                           } else {
                             final color = CupertinoTheme.of(context).textTheme.textStyle.color.withOpacity(0.5);
@@ -112,8 +86,45 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
     });
   }
 
+  void _onBroadcastReceived(ServerInfo serverInfo) {
+    // Check if we already know the server
+    var alreadyKnownIdx;
+    for (int idx = 0; idx < _serverInfos.length; ++idx) {
+      final a = _serverInfos[idx];
+      final b = serverInfo;
+      if (a.title == b.title && a.hostname == b.hostname && a.user == b.user) {
+        alreadyKnownIdx = idx;
+        break;
+      }
+    }
+
+    // Update the UI
+    setState(() {
+      // If we don't know the server already then add it to the list
+      if (alreadyKnownIdx == null) {
+        _serverInfos.add(serverInfo);
+      }
+      // Otherwise mark it as seen
+      else {
+        _serverInfos[alreadyKnownIdx].broadcastReceived = true;
+      }
+    });
+  }
+
+  void _onTileTapped(ServerInfo serverInfo) {
+    log('Tile tapped');
+  }
+
+  void _onDisconnectIconTapped(ServerInfo serverInfo) {
+    log('Disconnect tapped');
+  }
+
+  void _onRemoveIconTapped(ServerInfo serverInfo) {
+    log('Remove tapped');
+  }
+
   void _connectToServer(ServerInfo serverInfo) async {
-    log('Connecting to ${serverInfo.address.address} port ${serverInfo.httpPort}...');
+    log('Connecting to ${serverInfo.address} port ${serverInfo.httpPort}...');
     try {
       Socket socket = await Socket.connect(serverInfo.address, serverInfo.httpPort);
       log('Successfully connected');
@@ -126,17 +137,7 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
   }
 
   void _saveConnectionsToFile(List<ServerInfo> serverInfos) async {
-    final connections = serverInfos
-        .map((info) => ConnectionInfo(
-              info.address.address,
-              info.securePort,
-              info.title,
-              info.description,
-              '',
-              '',
-            ))
-        .toList();
-    ConnectionStorage().write(connections);
+    ConnectionStorage().write(serverInfos);
   }
 
   Future<List<ServerInfo>> _readConnectionsFromFile() async {
@@ -165,14 +166,40 @@ class ServerListTile extends StatelessWidget {
     final theme = CupertinoTheme.of(context);
     final textStyle = theme.textTheme.textStyle;
 
-    final backgroundColor = theme.scaffoldBackgroundColor;
-    final titleColor = serverInfo.status == ServerStatus.connected ? theme.primaryColor : textStyle.color;
-    final descriptionColor = textStyle.color.withOpacity(0.5);
+    // Colors for the title, subtitle and description
+    var titleColor = textStyle.color.withOpacity(0.4);
+    var subtitleColor = textStyle.color.withOpacity(0.4);
+    var descriptionColor = textStyle.color.withOpacity(0.4);
 
-    final subtitle = '${serverInfo.address.address} port ${serverInfo.httpPort}\n${serverInfo.description}';
+    if (serverInfo.broadcastReceived) {
+      titleColor = textStyle.color;
+      subtitleColor = textStyle.color.withOpacity(0.5);
+      descriptionColor = textStyle.color.withOpacity(0.5);
+    }
 
+    if (serverInfo.connecting) {
+      titleColor = textStyle.color;
+      subtitleColor = textStyle.color.withOpacity(0.5);
+      descriptionColor = textStyle.color.withOpacity(0.5);
+    }
+
+    if (serverInfo.connected) {
+      titleColor = theme.primaryColor;
+      subtitleColor = textStyle.color.withOpacity(0.5);
+      descriptionColor = textStyle.color.withOpacity(0.5);
+    }
+
+    // Create the subtitle
+    var subtitle = 'from ${serverInfo.user} @ ${serverInfo.hostname}';
+    if (serverInfo.broadcastReceived || serverInfo.connected) {
+      subtitle = 'Seen $subtitle';
+    } else {
+      subtitle = 'Previously seen $subtitle';
+    }
+
+    // Create the widget
     return Material(
-      color: backgroundColor,
+      color: theme.scaffoldBackgroundColor,
       child: InkWell(
         splashColor: textStyle.color.withOpacity(0.3),
         onTap: onTileTap,
@@ -184,9 +211,12 @@ class ServerListTile extends StatelessWidget {
               _makeLeadingWidget(context),
               Padding(padding: EdgeInsets.only(left: 6.0)),
               Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(serverInfo.title, style: TextStyle(color: titleColor)),
-                  Text(subtitle, style: TextStyle(color: descriptionColor)),
+                  Text(serverInfo.title, style: TextStyle(color: titleColor, fontSize: 16)),
+                  Text(subtitle, style: TextStyle(color: subtitleColor, fontSize: 12)),
+                  Container(height: 2),
+                  Text(serverInfo.description, style: TextStyle(color: descriptionColor)),
                 ],
               ),
               Spacer(),
@@ -199,36 +229,30 @@ class ServerListTile extends StatelessWidget {
   }
 
   Widget _makeLeadingWidget(BuildContext context) {
-    switch (serverInfo.status) {
-      case ServerStatus.connecting:
-        return CupertinoActivityIndicator();
-
-      case ServerStatus.connected:
-        return Icon(CupertinoIcons.checkmark_alt, color: CupertinoTheme.of(context).primaryColor);
-
-      default:
-        return SizedBox();
+    if (serverInfo.connected) {
+      return Icon(CupertinoIcons.checkmark_alt, color: CupertinoTheme.of(context).primaryColor);
+    } else if (serverInfo.connecting) {
+      return CupertinoActivityIndicator();
+    } else {
+      return SizedBox();
     }
   }
 
   Widget _makeTrailingWidget(BuildContext context) {
-    switch (serverInfo.status) {
-      case ServerStatus.previouslyConnected:
-        return CupertinoButton(
-          child: Icon(CupertinoIcons.trash, color: CupertinoTheme.of(context).textTheme.textStyle.color),
-          padding: const EdgeInsets.only(left: 10),
-          onPressed: onRemoveBtnTap,
-        );
-
-      case ServerStatus.connected:
-        return CupertinoButton(
-          child: Icon(CupertinoIcons.xmark_circle, color: CupertinoTheme.of(context).textTheme.textStyle.color),
-          padding: const EdgeInsets.only(left: 10),
-          onPressed: onDisconnectBtnTap,
-        );
-
-      default:
-        return SizedBox();
+    if (serverInfo.connected) {
+      return CupertinoButton(
+        child: Icon(CupertinoIcons.xmark_circle, color: CupertinoTheme.of(context).textTheme.textStyle.color),
+        padding: const EdgeInsets.only(left: 10),
+        onPressed: onDisconnectBtnTap,
+      );
+    } else if (serverInfo.previouslyConnected) {
+      return CupertinoButton(
+        child: Icon(CupertinoIcons.trash, color: CupertinoTheme.of(context).textTheme.textStyle.color),
+        padding: const EdgeInsets.only(left: 10),
+        onPressed: onRemoveBtnTap,
+      );
+    } else {
+      return SizedBox();
     }
   }
 }

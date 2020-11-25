@@ -4,8 +4,10 @@ Module for sending UDP broadcast messages for advertising the server for the mob
 
 import socket
 import asyncio
-import logging
+import getpass
+import hashlib
 import json
+import logging
 
 from config import Configuration
 from http_server import HttpServer
@@ -27,14 +29,20 @@ class Advertiser:
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
+        # Create a hash for the certificate
+        cert_hash = hashlib.sha256(cfg.ssl_cert_file.read_bytes()).hexdigest()
+
         # Create the broadcast message
         self._msg = json.dumps([
             'pipe2phone',
             PROTOCOL_VERSION,
             cfg.server_title,
             cfg.server_description,
+            getpass.getuser(),
+            socket.gethostname(),
             http_server.port,
-            secure_server.port
+            secure_server.port,
+            cert_hash,
         ]).encode()
 
         logging.info(f'Sending broadcasts on port {self.port} once every {self.interval} seconds')

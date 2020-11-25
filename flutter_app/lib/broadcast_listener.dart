@@ -106,7 +106,7 @@ class _BroadcastListenerState extends State<BroadcastListener> {
 
     RawDatagramSocket.bind(widget.broadcastAddress, port).then((RawDatagramSocket socket) {
       _broadcastSocket = socket;
-      log('Listening for broadcasts on ${widget.broadcastAddress.address} port ${port}...');
+      log('Listening for broadcasts on ${widget.broadcastAddress.address} port $port...');
 
       socket.listen((RawSocketEvent e) {
         // Receive the broadcast message
@@ -114,13 +114,13 @@ class _BroadcastListenerState extends State<BroadcastListener> {
         if (datagram == null) return;
 
         String msg = new String.fromCharCodes(datagram.data);
-        log('Received broadcast from ${datagram.address.address} port ${datagram.port}: $msg');
+        log('Received broadcast from ${datagram.address.address} port ${datagram.port}');
 
         // Parse the broadcast message
         ServerInfo serverInfo;
         try {
           serverInfo = ServerInfo.fromBroadcastMsg(datagram.address, msg);
-        } on Exception catch (e) {
+        } catch (e) {
           log('ERROR: Failed to parse broadcast message: $e');
         }
 

@@ -6,28 +6,34 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 class ConnectionInfo {
-  final String address;
-  final int securePort;
-  final String title;
-  final String description;
-  final String passwordHash;
-  final String certificate;
+  String address;
+  String hostname;
+  int securePort;
+  String title;
+  String description;
+  String user;
+  String passwordHash;
+  String certificate;
 
-  ConnectionInfo(this.address, this.securePort, this.title, this.description, this.passwordHash, this.certificate);
+  ConnectionInfo();
 
   ConnectionInfo.fromJson(Map<String, dynamic> json)
       : address = json['address'],
+        hostname = json['hostname'],
         securePort = json['securePort'],
         title = json['title'],
         description = json['description'],
+        user = json['user'],
         passwordHash = json['passwordHash'],
         certificate = json['certificate'];
 
   Map<String, dynamic> toJson() => {
         'address': address,
+        'hostname': hostname,
         'securePort': securePort,
         'title': title,
         'description': description,
+        'user': user,
         'passwordHash': passwordHash,
         'certificate': certificate,
       };
