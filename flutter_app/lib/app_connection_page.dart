@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:developer';
 import 'dart:math' as math;
@@ -17,7 +18,7 @@ class AppConnectionPage extends AppPage {
 
 class _AppConnectionPageState extends State<AppConnectionPage> {
   List<ServerInfo> _serverInfos = [];
-  int broadcastPort;
+  Socket _socket;
 
   @override
   void initState() {
@@ -52,7 +53,7 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
                             return ServerListTile(
                               serverInfo: serverInfo,
                               onTileTap: () => _onTileTapped(serverInfo),
-                              onRemoveBtnTap: () => _onRemoveIconTapped(serverInfo),
+                              onRemoveBtnTap: () => _onRemoveIconTapped(context, serverInfo),
                               onDisconnectBtnTap: () => _onDisconnectIconTapped(serverInfo),
                             );
                           } else {
@@ -112,32 +113,94 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
   }
 
   void _onTileTapped(ServerInfo serverInfo) {
-    log('Tile tapped');
+    _disconnectFromServer();
+    _connectToServer(serverInfo);
   }
 
   void _onDisconnectIconTapped(ServerInfo serverInfo) {
-    log('Disconnect tapped');
+    _disconnectFromServer();
   }
 
-  void _onRemoveIconTapped(ServerInfo serverInfo) {
-    log('Remove tapped');
+  void _onRemoveIconTapped(BuildContext context, ServerInfo serverInfo) async {
+    if (!await _askForConfirmationToRemove(context, serverInfo)) {
+      return;
+    }
+
+    setState(() {
+      _serverInfos.remove(serverInfo);
+    });
+
+    _saveConnectionsToFile();
+  }
+
+  Future<bool> _askForConfirmationToRemove(BuildContext context, ServerInfo serverInfo) {
+    final completer = Completer<bool>();
+
+    showCupertinoDialog(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+              title: Text('Remove connection'),
+              content: Text('Do you really want to remove\n"${serverInfo.title}"\nfrom the list of known connections?'),
+              actions: [
+                CupertinoButton(
+                    child: Text('Cancel'),
+                    onPressed: () {
+                      Navigator.of(context, rootNavigator: true).pop();
+                      completer.complete(false);
+                    }),
+                CupertinoButton(
+                    child: Text('Remove', style: TextStyle(color: CupertinoColors.destructiveRed)),
+                    onPressed: () {
+                      Navigator.of(context, rootNavigator: true).pop();
+                      completer.complete(true);
+                    })
+              ],
+            ));
+
+    return completer.future;
+  }
+
+  void _disconnectFromServer() {
+    if (_socket == null) {
+      return;
+    }
+
+    _socket.close();
+    _socket = null;
+    log('Disconnected from server');
+
+    setState(() {
+      _serverInfos.forEach((info) {
+        info.connected = false;
+      });
+    });
   }
 
   void _connectToServer(ServerInfo serverInfo) async {
     log('Connecting to ${serverInfo.address} port ${serverInfo.httpPort}...');
     try {
-      Socket socket = await Socket.connect(serverInfo.address, serverInfo.httpPort);
-      log('Successfully connected');
-      _saveConnectionsToFile(_serverInfos);
+      setState(() {
+        serverInfo.connecting = true;
+      });
 
-      socket.close();
+      _socket = await Socket.connect(serverInfo.address, serverInfo.securePort);
+
+      setState(() {
+        serverInfo.previouslyConnected = true;
+        serverInfo.connected = true;
+        serverInfo.connecting = false;
+      });
+
+      log('Successfully connected');
+      _saveConnectionsToFile();
     } on SocketException catch (e) {
       log('Connection failed: $e');
     }
   }
 
-  void _saveConnectionsToFile(List<ServerInfo> serverInfos) async {
-    ConnectionStorage().write(serverInfos);
+  void _saveConnectionsToFile() async {
+    final filteredServerInfos = _serverInfos.where((x) => x.previouslyConnected).toList();
+    ConnectionStorage().write(filteredServerInfos);
   }
 
   Future<List<ServerInfo>> _readConnectionsFromFile() async {
