@@ -2,6 +2,9 @@
 Cryptography-related functionality.
 """
 
+from getpass import getuser
+from socket import gethostname
+
 from OpenSSL import crypto
 
 
@@ -13,8 +16,8 @@ def generate_private_key(bits=2048) -> bytes:
 
 
 def generate_certificate(private_key: bytes, *,
-                         email_address='root@localhost',
-                         common_name='localhost',
+                         email_address=f'{getuser()}@{gethostname()}',
+                         common_name=gethostname(),
                          country_name='US',
                          locality_name='New York City',
                          state_or_province_name='New York',

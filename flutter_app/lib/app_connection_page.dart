@@ -1,14 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:developer';
 import 'dart:math' as math;
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:pipe2phone/connection_storage.dart';
+import 'package:http/http.dart' as http;
 
 import 'app_page.dart';
 import 'broadcast_listener.dart';
+import 'connection_storage.dart';
 import 'server_info.dart';
 
 class AppConnectionPage extends AppPage {
@@ -160,6 +163,27 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
     return completer.future;
   }
 
+  Future<bool> _showConnectionError(BuildContext context, ServerInfo serverInfo, String msg) {
+    final completer = Completer<bool>();
+
+    showCupertinoDialog(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+              title: Text('Connection error'),
+              content: Text('Failed to connect to\n"${serverInfo.title}":\n$msg'),
+              actions: [
+                CupertinoButton(
+                    child: Text('Dismiss'),
+                    onPressed: () {
+                      Navigator.of(context, rootNavigator: true).pop();
+                      completer.complete(false);
+                    }),
+              ],
+            ));
+
+    return completer.future;
+  }
+
   void _disconnectFromServer() {
     if (_socket == null) {
       return;
@@ -177,24 +201,51 @@ class _AppConnectionPageState extends State<AppConnectionPage> {
   }
 
   void _connectToServer(ServerInfo serverInfo) async {
-    log('Connecting to ${serverInfo.address} port ${serverInfo.httpPort}...');
+    log('Connecting to "${serverInfo.title}" on ${serverInfo.hostname} (${serverInfo.address})...');
+
+    // Update server tile icon
+    setState(() {
+      serverInfo.connecting = true;
+    });
+
     try {
-      setState(() {
-        serverInfo.connecting = true;
-      });
+      // Download SSL certificate from server
+      if (serverInfo.certificate == null) {
+        var resp = await http.get('http://${serverInfo.address}:${serverInfo.httpPort}/cert.pem');
+        serverInfo.certificate = resp.body;
+        serverInfo.certificateHash = sha256.convert(utf8.encode(serverInfo.certificate)).toString();
+      }
 
-      _socket = await Socket.connect(serverInfo.address, serverInfo.securePort);
+      // Connect to the secure port
+      final ctx = SecurityContext(withTrustedRoots: true);
+      ctx.setTrustedCertificatesBytes(utf8.encode(serverInfo.certificate));
 
+      _socket = await SecureSocket.connect(
+        serverInfo.address,
+        serverInfo.securePort,
+        context: ctx,
+        // onBadCertificate: (cert) => true,
+      );
+
+      log('Successfully connected');
+      _saveConnectionsToFile();
+
+      // Update server tile icon
       setState(() {
         serverInfo.previouslyConnected = true;
         serverInfo.connected = true;
         serverInfo.connecting = false;
       });
-
-      log('Successfully connected');
-      _saveConnectionsToFile();
     } on SocketException catch (e) {
       log('Connection failed: $e');
+
+      // Update server tile icon
+      setState(() {
+        serverInfo.connecting = false;
+      });
+
+      // Show an error dialog to the user
+      await _showConnectionError(context, serverInfo, e.toString());
     }
   }
 
@@ -253,7 +304,7 @@ class ServerListTile extends StatelessWidget {
     }
 
     // Create the subtitle
-    var subtitle = 'from ${serverInfo.user} @ ${serverInfo.hostname}';
+    var subtitle = 'from ${serverInfo.user}@${serverInfo.hostname}';
     if (serverInfo.broadcastReceived || serverInfo.connected) {
       subtitle = 'Seen $subtitle';
     } else {
